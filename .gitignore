@@ -194,6 +194,17 @@ cython_debug/
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+.idea/compiler.xml
+.idea/**/contentModel.xml
+.idea/**/dataSources/
+.idea/**/dataSources.xml
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/data_source_mapping.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
 
 # Abstra
 #   Abstra is an AI-powered process automation framework.
@@ -223,3 +234,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Development-related files
+.env
+dev_test.py
+dev_imgs
