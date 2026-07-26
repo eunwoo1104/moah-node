@@ -5,11 +5,14 @@ from typing import List, Optional, TypedDict
 from aiomysql import DictCursor, Pool, create_pool
 
 
-class Media(TypedDict):
-    id: int
+class PartialMedia(TypedDict):
     dir: str
     created_at: datetime
     uploader: int
+
+
+class Media(PartialMedia):
+    id: int
 
 
 class Tag(TypedDict):
@@ -79,3 +82,13 @@ class MoahNodeDB:
             async with conn.cursor() as cursor:
                 await cursor.execute(query, tags)
                 return await cursor.fetchall()
+
+    async def insert_media(self, media: PartialMedia, tags: List[str]) -> None:
+        query = "INSERT INTO media (dir, uploader, created_at) VALUES (%s, %s, %s)"
+        async with self.pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(
+                    query, (media["dir"], media["uploader"], media["created_at"])
+                )
+                inserted_id = cursor.lastrowid
+                # TODO: apply tag_map from tags

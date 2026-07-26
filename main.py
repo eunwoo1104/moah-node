@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from os import getenv
 
 from dotenv import load_dotenv
@@ -5,7 +6,7 @@ from sanic import Sanic, json
 from sanic.request import Request
 from sanic.response import HTTPResponse, text
 
-from util import MoahNodeDB
+from util import MediaSaveHandler, MoahNodeDB, PartialMedia
 
 load_dotenv()
 
@@ -49,3 +50,40 @@ async def get_media(request: Request) -> HTTPResponse:
     media["created_at"] = str(media["created_at"])
 
     return json(media)
+
+
+@app.post("/media")
+async def post_media(request: Request) -> HTTPResponse:
+    # TODO: rate limiting
+
+    file = request.files.get("file")
+    if file is None:
+        return text("Missing file.", status=400)
+
+    ext: str = file.name.split(".")[-1]
+    tags: list[str] | None = request.form.getlist("tags")
+
+    if len(ext) > 7:
+        return text("File extension too long. (Max 7)", status=400)
+
+    if type(tags) is not list:
+        return text("Missing tags.", status=400)
+
+    if tags and not all(type(x) is str for x in tags):
+        return text("Tags not valid.", status=400)
+
+    with MediaSaveHandler(file.body, ext) as handler:
+        media_data: PartialMedia = {
+            "dir": handler.dir,
+            "created_at": datetime.now(UTC),
+            "uploader": 1,  # TODO: get uploader
+        }
+        await app.ctx.database.insert_media(media_data, tags)
+        handler.mark_safe()
+
+    # TODO: error handling and better response data
+    return text("Media saved successfully.", status=200)
+
+
+if __name__ == "__main__":
+    app.run(dev=True)
