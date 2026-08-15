@@ -61,16 +61,9 @@ async def post_media(request: Request) -> HTTPResponse:
         return text("Missing file.", status=400)
 
     ext: str = file.name.split(".")[-1]
-    tags: list[str] | None = request.form.getlist("tags")
 
     if len(ext) > 7:
         return text("File extension too long. (Max 7)", status=400)
-
-    if type(tags) is not list:
-        return text("Missing tags.", status=400)
-
-    if tags and not all(type(x) is str for x in tags):
-        return text("Tags not valid.", status=400)
 
     with MediaSaveHandler(file.body, ext) as handler:
         media_data: PartialMedia = {
@@ -78,7 +71,7 @@ async def post_media(request: Request) -> HTTPResponse:
             "created_at": datetime.now(UTC),
             "uploader": 1,  # TODO: get uploader
         }
-        await app.ctx.database.insert_media(media_data, tags)
+        await app.ctx.database.insert_media(media_data)
         handler.mark_safe()
 
     # TODO: error handling and better response data
