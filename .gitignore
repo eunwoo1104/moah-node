@@ -239,3 +239,4 @@ __marimo__/
 .env
 dev_test.py
 dev_imgs
+media

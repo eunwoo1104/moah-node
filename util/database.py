@@ -1,30 +1,28 @@
 from asyncio import AbstractEventLoop
 from datetime import datetime
-from typing import List, Optional, TypedDict
+from typing import Optional, TypedDict
 
 from aiomysql import DictCursor, Pool, create_pool
 
 
 class PartialMedia(TypedDict):
     dir: str
-    created_at: datetime
-    uploader: int
+    uploaded_from: int
 
 
 class Media(PartialMedia):
     id: int
+    created_at: datetime
 
 
-class User(TypedDict):
+class CoreData(TypedDict):
     id: int
-    permission: int
+    auth: str
 
 
-class MoahNodeDB:
-    _instance: Optional[MoahNodeDB] = None
-
+class MoAhNodeDB:
     def __init__(self, pool: Pool):
-        self.pool: Pool = pool
+        self.__pool: Pool = pool
 
     @classmethod
     async def acquire(
@@ -37,38 +35,42 @@ class MoahNodeDB:
         loop: Optional[AbstractEventLoop] = None,
         **kwargs,
     ):
-        if cls._instance is None:
-            pool = await create_pool(
-                host=host,
-                port=port,
-                user=user,
-                password=password,
-                db=db,
-                loop=loop,
-                autocommit=True,
-                cursorclass=DictCursor,
-                **kwargs,
-            )
-            cls._instance = MoahNodeDB(pool=pool)
-        return cls._instance
+        pool = await create_pool(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            db=db,
+            loop=loop,
+            autocommit=True,
+            cursorclass=DictCursor,
+            **kwargs,
+        )
+        return cls(pool)
 
     async def close(self, force: bool = False) -> None:
-        self.pool.close()
-        self._instance = None
+        self.__pool.close()
         if not force:
-            await self.pool.wait_closed()
+            await self.__pool.wait_closed()
 
     async def get_media(self, media_id: int) -> Optional[Media]:
         query = "SELECT * FROM media WHERE id = %s"
-        async with self.pool.acquire() as conn:
+        async with self.__pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(query, media_id)
                 return await cursor.fetchone()
 
-    async def insert_media(self, media: PartialMedia) -> None:
-        query = "INSERT INTO media (dir, uploader, created_at) VALUES (%s, %s, %s)"
-        async with self.pool.acquire() as conn:
+    async def insert_media(self, media: PartialMedia) -> int:
+        query = "INSERT INTO media (dir, uploaded_from) VALUES (%s, %s)"
+        async with self.__pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(
-                    query, (media["dir"], media["uploader"], media["created_at"])
-                )
+                await cursor.execute(query, (media["dir"], media["uploaded_from"]))
+                return cursor.lastrowid
+
+    async def get_core_id(self, key: str) -> Optional[int]:
+        query = "SELECT id FROM core WHERE auth = %s"
+        async with self.__pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(query, key)
+                data: CoreData = await cursor.fetchone()
+                return (bool(data) or None) and data["id"]
